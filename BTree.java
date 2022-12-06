@@ -19,6 +19,16 @@ public class BTree {
         //constructors and other method 
 
         //constructor for a BTreeNode in memory
+        private BTreeNode(){//default constructor initializing variables in memory
+            this.count = 0;
+            keys = new int[order]; //keys size is one more than it needs to be to help with splitting
+            for(int i = 0; i<keys.length; i++){ //initializing values to minvalue
+                keys[i] = Integer.MIN_VALUE;
+            }
+            children = new long[order+1]; //size of children is one more than it needs to be to help with splitting
+            //address doesn't need to be initialized yet
+            //neither does isleaf
+        }
         private BTreeNode(int count, int keys[], long children[], long address){
             this.count = count; //setting all the attributes
             this.keys = keys;
@@ -29,8 +39,8 @@ public class BTree {
 
         //constructor for a BTreeNode in a file
         private BTreeNode(long address) throws IOException{
-            this.keys = new int[order-1];
-            this.children = new long[order];
+            this.keys = new int[order];
+            this.children = new long[order+1];
 
             this.address = address; //setting address attribute
             f.seek(address); //seeking address
@@ -39,7 +49,7 @@ public class BTree {
             for(int i = 0; i<keys.length; i++){
                 keys[i] = f.readInt(); //assigning the keys in the file to memory
             }
-            for(int i = 0; i<order; i++){//order is the number of children
+            for(int i = 0; i<children.length; i++){//order is the number of children
                 children[i] = f.readLong(); //assigning the children in the file to memory
                 //this assigns everything, even the children that were not given a value
             }
@@ -49,18 +59,18 @@ public class BTree {
         private void writeNode(long address) throws IOException{
             f.seek(address);
             f.writeInt(count);
-            for(int i = 0; i<order-1; i++){ //order-1 because we are filling the whole block
-                if(i < keys.length-1){ //index within range
+            for(int i = 0; i<keys.length; i++){ //order-1 because we are filling the whole block
+                if(i < keys.length){ //index within range
                     f.writeInt(keys[i]); //writing the keys to the file
                 }else{ //index not within range
-                    f.writeInt(Integer.MIN_VALUE); //writing 0 in the values that are not being used
+                    f.writeInt(Integer.MIN_VALUE); //writing min in the values that are not being used
                 }
             }
             for(int i = 0; i<order; i++){
-                if(i < children.length-1){
+                if(i < children.length){
                     f.writeLong(children[i]);
                 }else{
-                    f.writeLong(0); //writing 0 in the values that are not being used
+                    f.writeLong(0); //writing min in the values that are not being used
                 }
             }
         }
@@ -106,14 +116,15 @@ public class BTree {
         return false if the key is a duplicate 
         */
         boolean split = true;
+        int[] keysVar = new int[order];
 
         if(this.root == -1 ){//the tree is empty
-            int[] keys = new int[order-1];
+            int[] keys = new int[order];
             for(int i = 0; i<keys.length; i++){ //the padding for the arrays is integer.minvalue
                 keys[i] = Integer.MIN_VALUE;
             }
             keys = keysArray(key, keys);
-            long[] children = new long[order]; //nothing in it because there are no children (padded with 0s)
+            long[] children = new long[order+1]; //nothing in it because there are no children (padded with 0s)
             children[1] = addr; //setting the second child pointer to the correct row of data since key = key
             BTreeNode write = new BTreeNode(-1, keys, children, addr);
 
@@ -134,14 +145,21 @@ public class BTree {
             Stack<BTreeNode> stack = searchWithStack(this.root, key);
 
             BTreeNode cur = stack.pop(); //this is the leaf node we will look at to start
-            cur.keys = keysArray(key,cur.keys); //this will add the key to our node
-            if(cur.keys != null){ //if it is null that would indicate there isnt room
+
+            keysVar = keysArray(key,cur.keys); //this will add the key to our node
+            if(keysVar != null){ //if it is null that would indicate there isnt room
+                cur.keys = keysVar;
                 split = false; //setting split to false since we wont be splitting the node
                 int childIndex = compareForChildren(key, cur.keys); //this is the index of where the address will go
+                //shift over childrenarray
+                cur.children = shiftChildren(childIndex, cur.children);
                 cur.children[childIndex] = addr; //setting the address
-                cur.count = -getCount(cur.keys); //this is the negation of it because we are at a leaf
+                cur.count = getCount(cur.keys, true); //this is the negation of it because we are at a leaf
                 cur.writeNode(cur.address); //writing the node to the file where it relies
             }else{//else the node is full 
+                BTreeNode newNode = split(cur, key, addr); //this method will return the right values node and modify cur to be the left
+                int[] x = cur.keys;
+
 
             }
 
@@ -151,13 +169,124 @@ public class BTree {
     }
 
     /*
+     * This method returns a BTreeNode. It returns the right values node and modifies the parameter node to be the left
+     * it also takes the key as a parameter along with the long address to be added to children 
+     */
+    public BTreeNode split(BTreeNode left, int key, long address){
+        BTreeNode right = new BTreeNode();
+        //creating the key arrays for the nodes
+        left.keys = keysNotNullArray(key, left.keys); //this adds the key to the array;
+
+        int index = compareForChildren(key, left.keys); //this is the index of where we will add to the children array
+        left.children = shiftChildren(index,left.children); //shifting the children
+        left.children[index] = address; //adding the new address
+
+        right.keys = splitValuesRight(left.keys); //splitting the keys now
+        left.keys = splitValuesLeft(left.keys);
+        //the keys of both are split
+        
+        
+
+
+
+        return right;
+
+    }
+
+    /*
+     * Returns an array of the left keys
+     */
+    public int[] splitValuesLeft(int[] arr){
+        int[] ret = new int[order];
+        for(int i = 0; i<ret.length; i++){
+            if(i < Math.floor(ret.length/2)){
+                ret[i] = arr[i];
+            }
+            else{
+                ret[i] = Integer.MIN_VALUE;
+            }
+        }
+        return ret;
+    }
+
+    /*
+     * Returns an array of the right keys
+     */
+    public int[] splitValuesRight(int[] arr){
+        int[] ret = new int[order];
+        for(int i = 0; i<ret.length; i++){
+            if(i >= Math.ceil(ret.length/2)){
+                ret[i] = arr[i];
+            }else{
+                ret[i] = Integer.MAX_VALUE;
+            }
+        }
+        return ret;
+    }
+
+    /*
+     * Returns an array of the left children pointers 
+     * parameter address is the new address associated with the new key
+     */
+//    public long[] splitValuesLeft(long[] arr){
+
+//    }
+
+    /*
+     * Returns an array of the right children pointers
+     * parameter address is the new address associated with the new key
+     */
+//    public long[] splitValuesRight(long[] arr){
+
+//    }
+
+    /*
+     * This method shifts the children over by one so that an insert can be made
+     * PRE: children cannot be full
+     */
+    public long[] shiftChildren(int index, long[] children){
+        long temp = 0;
+        long t;
+        for(int i = index; i<children.length-1; i++){
+            if(i == index){
+                temp = children[i+1];
+                children[i+1] = children[i];
+            }else{
+                t = children[i+1];
+                children[i+1] = temp;
+                temp = t;
+                
+            }
+        }
+        return children;
+    }
+
+    public long[] shiftChildrenSplit(int index, long[] children){
+        long temp = 0;
+        long t;
+        for(int i = index; i<children.length-1; i++){
+            if(i == index){
+                temp = children[i+1];
+                children[i+1] = children[i];
+            }else{
+                t = children[i+1];
+                children[i+1] = temp;
+                temp = t;
+                
+            }
+        }
+        return children;
+    }
+
+    /*
      * This method assumes you are adding one to the count,
      * it counts the number of keys and then returns that plus 1
      */
-    public int getCount(int[] keys){
-        int x = 1;
-        for(int i = 0; i<keys.length; i++){
-            if(keys[i] != Integer.MIN_VALUE) x++;
+    public int getCount(int[] keys, boolean leaf){
+        int x = 0;
+        for(int i = 0; i<keys.length-1; i++){
+            if(keys[i] != Integer.MIN_VALUE && !leaf) x++;
+            if(keys[i] != Integer.MIN_VALUE && leaf) x--;
         }
         return x;
     }
@@ -213,7 +342,7 @@ public class BTree {
      * This is a method that adds the integer we want to a the sorted array
      * The sorted array is always padded with 0s
      */
-    public static int[] keysArray(int add, int[] curArray){// add is the int we will add to the array and curArray is the array we will add it to
+    public int[] keysArray(int add, int[] curArray){// add is the int we will add to the array and curArray is the array we will add it to
         if(curArray[0] == Integer.MIN_VALUE){
             curArray[0] = add;
             return curArray;
@@ -223,6 +352,25 @@ public class BTree {
             if(curArray[i] != Integer.MIN_VALUE) n++;
         }
         if(n>=4) return null; //returning null because the array is full
+        int i;
+        for(i = n - 1; (i>= 0 && curArray[i] > add); i--){
+            curArray[i+1] = curArray[i];
+        }
+        curArray[i+1] = add;
+        return curArray;
+    }
+
+
+
+    public int[] keysNotNullArray(int add, int[] curArray){// add is the int we will add to the array and curArray is the array we will add it to
+        if(curArray[0] == Integer.MIN_VALUE){
+            curArray[0] = add;
+            return curArray;
+        }
+        int n = 0;
+        for(int i = 0; i<curArray.length; i++){
+            if(curArray[i] != Integer.MIN_VALUE) n++;
+        }
         int i;
         for(i = n - 1; (i>= 0 && curArray[i] > add); i--){
             curArray[i+1] = curArray[i];
@@ -255,7 +403,7 @@ public class BTree {
         }//when we exit the while loop cur is a leaf that may contain what we are looking for
         //use searchFor function in dbtable to return true if it was found and false if it wasnt
         long dbTableAddress = cur.children[compareForChildren(k, cur.keys)]; //this is now the address of the row
-        for(int i = 0; i<cur.keys.length; i++){
+        for(int i = 0; i<cur.keys.length-1; i++){
             if(cur.keys[i] == k){
                 //if it was found, then we return the address to the blo
                 return 0;
@@ -273,14 +421,19 @@ public class BTree {
      */
     public int compareForChildren(int key, int[] keyArr){
         int i;
-        if(key<keyArr[0]) return 0;
+        if(key<keyArr[0]){
+            return 0;
+        }else if(key>= keyArr[keyArr.length-2] && keyArr[keyArr.length-2] != Integer.MIN_VALUE){
+            return keyArr.length-1;
+        }
         for(i = 0; i<keyArr.length-1; i++){
-            if(key>=keyArr[i] && (key<keyArr[i+1] || keyArr[i+1] == Integer.MIN_VALUE)){
+            if((key>=keyArr[i] && key<keyArr[i+1]) || (keyArr[i+1] == Integer.MIN_VALUE)){
                 break;
             }
         }
         return i+1;
     }
+
 
 
 /* 
@@ -306,14 +459,15 @@ public class BTree {
         int content = f.readInt();
         System.out.println("This is the content: "+content);
         System.out.print("These are the keys: ");
-        for(int i = 0; i<order-1; i++){
+        for(int i = 0; i<5; i++){
             System.out.print(f.readInt()+" ");
         }
         System.out.println();
         System.out.print("These are the children: ");
-        for(int i = 0; i<order; i++){
+        for(int i = 0; i<6; i++){
             System.out.print(f.readLong()+" ");
         }
+        System.out.println();
 
     }
 
@@ -323,10 +477,11 @@ public class BTree {
     
     public static void main(String[] args) throws IOException{
         BTree tree = new BTree("./BtreeFile", 60);
-        tree.insert(40, 500);
-        tree.insert(50, 550); //fix the issues with this
-        tree.insert(55, 55234);
-        tree.insert(35, 5123);
+        tree.insert(5, 500);
+        tree.insert(8, 550); //fix the issues with this
+        tree.insert(9, 200);
+        tree.insert(6, 5123);
+        tree.insert(7, 123);
         tree.printRoot();
     }
 }
