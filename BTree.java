@@ -143,12 +143,13 @@ public class BTree {
 //                f.writeLong(address); 
 //                  Also this is the case for the root so that must be updated in memory and in the file
             }
-            return true; 
+            split = false;
+
         }else{
             //starting with searching for the position where we will do an insert
-            Stack<BTreeNode> stack = searchWithStack(this.root, key);
+            Stack<BTreeNode> path = searchWithStack(this.root, key);
 
-            BTreeNode cur = stack.pop(); //this is the leaf node we will look at to start
+            BTreeNode cur = path.pop(); //this is the leaf node we will look at to start
 
             keysVar = keysArray(key,cur.keys); //this will add the key to our node
             if(keysVar != null){ //if it is null that would indicate there isnt room
@@ -162,13 +163,26 @@ public class BTree {
                 cur.writeNode(cur.address); //writing the node to the file where it relies
             }else{//else the node is full 
                 BTreeNode newNode = split(cur, key, addr); //this method will return the right values node and modify cur to be the left
-                int[] x = cur.keys;
+                //newNode is now the right values node while cur is the left values node
+                int val = newNode.keys[0];//this is the smallest value
 
+                cur.writeNode(cur.address); //updating cur (the left node)
 
+                //now adding newnode to the file (freelist or f.length)
+                long loc; //this is the address in the file of newNode
+                if(isFreeEmpty()){
+                    loc = f.length();
+                    newNode.writeNode(loc); //writing it at the length
+                }else{ //write this node to the freelist
+                    //make sure to update loc so that it still reflects the address of newNode in the file
+
+                }
+                split = true; //setting split to true
+
+                while(!path.empty() && split){
+                    newNode = path.pop(); //this is where I left off
+                }
             }
-
-
-            return false;
         }
     }
 
@@ -185,25 +199,34 @@ public class BTree {
         left.children = shiftChildren(index,left.children); //shifting the children
         left.children[index] = address; //adding the new address
 
-        right.keys = splitValuesRight(left.keys); //splitting the keys now
-        left.keys = splitValuesLeft(left.keys);
+        right.keys = splitKeysRight(left.keys); //splitting the keys now
+        left.keys = splitKeysLeft(left.keys);
         //the keys of both are split
-        
-        
 
+        right.children = splitChildrenRight(left.children);
+        left.children = splitChildrenLeft(left.children);
+        //the children of both are split
 
+        //Now updating the nodes counts (Negative because they are both leaves)
+        right.count = -(int)Math.ceil((double)order/2);
+        left.count = -(int)Math.floor((double)order/2);
+        
 
         return right;
 
     }
 
     /*
+     * This is a method that updates the count of a node
+     */
+
+    /*
      * Returns an array of the left keys
      */
-    public int[] splitValuesLeft(int[] arr){
+    public int[] splitKeysLeft(int[] arr){
         int[] ret = new int[order];
         for(int i = 0; i<ret.length; i++){
-            if(i < Math.floor(ret.length/2)){
+            if(i < Math.floor((double)ret.length/2)){
                 ret[i] = arr[i];
             }
             else{
@@ -214,15 +237,18 @@ public class BTree {
     }
 
     /*
-     * Returns an array of the right keys
+     * Returns an array of the right keys 
      */
-    public int[] splitValuesRight(int[] arr){
+    public int[] splitKeysRight(int[] arr){
         int[] ret = new int[order];
-        for(int i = 0; i<ret.length; i++){
-            if(i >= Math.ceil(ret.length/2)){
-                ret[i] = arr[i];
+        int x = 0;
+        for(int i = (int)Math.floor((double)ret.length/2); i<order+(int)Math.floor((double)ret.length/2); i++){
+            if(i<order){
+                ret[x] = arr[i];
+                x++;
             }else{
-                ret[i] = Integer.MAX_VALUE;
+                ret[x] = Integer.MIN_VALUE;
+                x++;
             }
         }
         return ret;
@@ -232,17 +258,27 @@ public class BTree {
      * Returns an array of the left children pointers 
      * parameter address is the new address associated with the new key
      */
-//    public long[] splitValuesLeft(long[] arr){
-
-//    }
+    public long[] splitChildrenLeft(long[] arr){
+        long[] ret = new long[order+1];
+        for(int i = 0; i< Math.floor((double)order/2); i++){
+            ret[i] = arr[i];
+        }
+        return ret;
+    }
 
     /*
      * Returns an array of the right children pointers
      * parameter address is the new address associated with the new key
      */
-//    public long[] splitValuesRight(long[] arr){
-
-//    }
+    public long[] splitChildrenRight(long[] arr){
+        long[] ret = new long[order+1];
+        int x = 0; //counter
+        for(double i = Math.floor((double)order/2); i<ret.length; i++){
+            ret[x] = arr[(int)i];
+            x++;
+        }
+        return ret;
+    }
 
     /*
      * This method shifts the children over by one so that an insert can be made
