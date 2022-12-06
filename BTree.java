@@ -47,9 +47,13 @@ public class BTree {
             this.count = f.readInt();
             isLeaf = count < 0 ? true : false; //count is negative --> is a leaf | count is positive --> not a leaf
             for(int i = 0; i<keys.length; i++){
+                if(i == keys.length-1){
+                    keys[i] = Integer.MIN_VALUE;
+                    break;
+                } 
                 keys[i] = f.readInt(); //assigning the keys in the file to memory
             }
-            for(int i = 0; i<children.length; i++){//order is the number of children
+            for(int i = 0; i<children.length-1; i++){//order is the number of children
                 children[i] = f.readLong(); //assigning the children in the file to memory
                 //this assigns everything, even the children that were not given a value
             }
@@ -59,7 +63,7 @@ public class BTree {
         private void writeNode(long address) throws IOException{
             f.seek(address);
             f.writeInt(count);
-            for(int i = 0; i<keys.length; i++){ //order-1 because we are filling the whole block
+            for(int i = 0; i<keys.length-1; i++){ //order-1 because we are filling the whole block
                 if(i < keys.length){ //index within range
                     f.writeInt(keys[i]); //writing the keys to the file
                 }else{ //index not within range
@@ -125,7 +129,7 @@ public class BTree {
             }
             keys = keysArray(key, keys);
             long[] children = new long[order+1]; //nothing in it because there are no children (padded with 0s)
-            children[1] = addr; //setting the second child pointer to the correct row of data since key = key
+            children[0] = addr; //setting the second child pointer to the correct row of data since key = key
             BTreeNode write = new BTreeNode(-1, keys, children, addr);
 
             if(isFreeEmpty()){
@@ -351,7 +355,7 @@ public class BTree {
         for(int i = 0; i<curArray.length; i++){
             if(curArray[i] != Integer.MIN_VALUE) n++;
         }
-        if(n>=4) return null; //returning null because the array is full
+        if(n>=order-1) return null; //returning null because the array is full
         int i;
         for(i = n - 1; (i>= 0 && curArray[i] > add); i--){
             curArray[i+1] = curArray[i];
@@ -420,18 +424,10 @@ public class BTree {
      * the B+ tree
      */
     public int compareForChildren(int key, int[] keyArr){
-        int i;
-        if(key<keyArr[0]){
-            return 0;
-        }else if(key>= keyArr[keyArr.length-2] && keyArr[keyArr.length-2] != Integer.MIN_VALUE){
-            return keyArr.length-1;
+        for(int i = 0; i<keyArr.length; i++){
+            if(keyArr[i] == key) return i;
         }
-        for(i = 0; i<keyArr.length-1; i++){
-            if((key>=keyArr[i] && key<keyArr[i+1]) || (keyArr[i+1] == Integer.MIN_VALUE)){
-                break;
-            }
-        }
-        return i+1;
+        return 0;
     }
 
 
@@ -459,12 +455,12 @@ public class BTree {
         int content = f.readInt();
         System.out.println("This is the content: "+content);
         System.out.print("These are the keys: ");
-        for(int i = 0; i<5; i++){
+        for(int i = 0; i<4; i++){
             System.out.print(f.readInt()+" ");
         }
         System.out.println();
         System.out.print("These are the children: ");
-        for(int i = 0; i<6; i++){
+        for(int i = 0; i<5; i++){
             System.out.print(f.readLong()+" ");
         }
         System.out.println();
