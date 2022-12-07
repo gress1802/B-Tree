@@ -1,6 +1,9 @@
 import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.io.RandomAccessFile;
+import java.util.ArrayDeque;
+import java.util.LinkedList;
+import java.util.Queue;
 import java.util.Stack;
 
 public class BTree { 
@@ -89,6 +92,7 @@ public class BTree {
         //first calculate the order
         this.order = (int) Math.floor(bsize/12); //setting the order attribute
         f = new RandomAccessFile(filename, "rw"); //creating a new randomaccessfile
+        f.setLength(0); //setting the file size to 0 because we are creating a new file
         //not organizing the attributes in the file
         f.seek(0);
         f.writeLong(-1); //the tree is empty so -1 is written
@@ -157,21 +161,26 @@ public class BTree {
                 split = false; //setting split to false since we wont be splitting the node
                 int childIndex = compareForChildren(key, cur.keys); //this is the index of where the address will go
                 //shift over childrenarray
-                cur.children = shiftChildren(childIndex, cur.children);
+                cur.children = shiftChildrenLeaves(childIndex, cur.children);
                 cur.children[childIndex] = addr; //setting the address
-                cur.count = getCount(cur.keys, true); //this is the negation of it because we are at a leaf
+                cur.count = getCount(cur.keys, cur.isLeaf); //this is the negation of it because we are at a leaf
                 cur.writeNode(cur.address); //writing the node to the file where it relies
             }else{//else the node is full 
-                BTreeNode newNode = split(cur, key, addr); //this method will return the right values node and modify cur to be the left
+                BTreeNode newNode = split(cur, key, addr); //this method will return the right values node (newNode) and modify cur to be the left(node)
                 //newNode is now the right values node while cur is the left values node
+                cur.children[order-1] = f.length(); //change this when implementing freelist
                 int val = newNode.keys[0];//this is the smallest value
+
+                //setting pointers at the leaves
+
 
                 cur.writeNode(cur.address); //updating cur (the left node)
 
                 //now adding newnode to the file (freelist or f.length)
-                long loc; //this is the address in the file of newNode
+                long loc = 0; //this is the address in the file of newNode
                 if(isFreeEmpty()){
                     loc = f.length();
+                    newNode.address = loc;
                     newNode.writeNode(loc); //writing it at the length
                 }else{ //write this node to the freelist
                     //make sure to update loc so that it still reflects the address of newNode in the file
@@ -180,10 +189,73 @@ public class BTree {
                 split = true; //setting split to true
 
                 while(!path.empty() && split){
-                    newNode = path.pop(); //this is where I left off
+                   BTreeNode node = path.pop();
+
+                   if(node.count < order-1){//there is room in the node for this value
+                        //we need to insert val and loc to this node and update the count
+                        updateNode(node, val, loc);
+                        split = false;
+                    }else{ //there is not room in node for a new value 
+                        newNode = new BTreeNode();
+                        newNode = split(node, val, loc); //we are splitting the root. the right values node is newNode and node is now the left values node
+                        val = newNode.keys[0];
+                        node.writeNode(node.address);
+                        //now writing newNode to the file
+                        if(isFreeEmpty()){
+                            loc = f.length();
+                            newNode.address = loc;
+                            newNode.writeNode(loc);
+                        }else{
+
+                        }
+                        newNode.writeNode(newNode.address);
+                        cur = node;
+                        //split remains true
+
+                   }
+                }
+                if(split){//the root was split
+                    newNode = new BTreeNode();
+                    newNode.keys = keysArray(val, newNode.keys); //adding val to newNode
+                    newNode.children[0] = cur.address;
+                    newNode.children[1] = loc;
+                    newNode.count = getCount(newNode.keys, false); //this is the new root. updating its count and it is not a leaf
+                    //writing the node and updating the root
+                    if(isFreeEmpty()){ //writing it at the length
+                        long address = f.length();
+                        newNode.address = address;
+                        newNode.writeNode(address);
+                        writeRoot(address);
+                        this.root = address;
+
+                    }else{ //writing this node at the next available spot in the freelist
+
+                    }
                 }
             }
         }
+        return true;
+    }
+
+    /*
+     * This is a method that updates a BTreeNode by adding the parameter key, adding
+     * the parameter address, and updating the count of the BTreeNode
+     */
+    public void updateNode(BTreeNode newNode, int key, long addr) throws IOException{
+        int childIndex = compareForChildrenLeaves(key, newNode.keys) + 1; //this is the index of where the address will go
+        newNode.children = shiftChildren(childIndex, newNode.children); //shifting the children
+        newNode.children[childIndex] = addr; //setting the address
+        newNode.keys = keysArray(key,newNode.keys); //updating the key
+        newNode.count = getCount(newNode.keys, newNode.isLeaf);
+        newNode.writeNode(newNode.address);
+    }
+
+    /*
+     * This is a simple method that updates the root in the file
+     */
+    public void writeRoot(long address) throws IOException{
+        f.seek(0);
+        f.writeLong(address);
     }
 
     /*
@@ -195,7 +267,7 @@ public class BTree {
         //creating the key arrays for the nodes
         left.keys = keysNotNullArray(key, left.keys); //this adds the key to the array;
 
-        int index = compareForChildren(key, left.keys); //this is the index of where we will add to the children array
+        int index = compareForChildrenLeaves(key, left.keys); //this is the index of where we will add to the children array
         left.children = shiftChildren(index,left.children); //shifting the children
         left.children[index] = address; //adding the new address
 
@@ -301,6 +373,27 @@ public class BTree {
         return children;
     }
 
+        /*
+         * Specifically for shifting the children of leaves
+         */
+        public long[] shiftChildrenLeaves(int index, long[] children){
+        long temp = 0;
+        long t;
+        for(int i = index; i<children.length-3; i++){
+            if(i == index){
+                temp = children[i+1];
+                children[i+1] = children[i];
+            }else{
+                t = children[i+1];
+                children[i+1] = temp;
+                temp = t;
+                
+            }
+        }
+        return children;
+    }
+
+
     public long[] shiftChildrenSplit(int index, long[] children){
         long temp = 0;
         long t;
@@ -341,11 +434,22 @@ public class BTree {
         Stack<BTreeNode> ret = new Stack<BTreeNode>();
         ret.push(cur); //pushing cur to the stack as it is the first node in the search path
         while(!cur.isLeaf){
-            long nextAddress = compareForChildren(k, cur.keys);
-            cur = new BTreeNode(nextAddress);
+            int index = compareForChildrenLeaves(k, cur.keys);
+            cur = new BTreeNode(cur.children[index]);
             ret.push(cur); //pushing the next node in the search path onto the stack
         }
         return ret;
+    }
+
+    /*
+     * This is a method that checks the key array of a node for a key
+     * returns true if the key is in the array (duplicate) else false
+     */
+    public boolean checkArrForKey(int key, int[] arr){
+        for(int i = 0; i<arr.length; i++){
+            if(arr[i] == key) return false;
+        }
+        return true;
     }
 
     /*
@@ -466,55 +570,103 @@ public class BTree {
         return 0;
     }
 
+    /*
+     * This returns the index with leaves
+     */
+    public int compareForChildrenLeaves(int key, int[] keyArr){
+        if(key < keyArr[0]) return 0;
+        if(key >= keyArr[order-1] && keyArr[order-1] != Integer.MIN_VALUE) return order;
+        for(int i = 0; i<keyArr.length; i++){
+            if(key >= keyArr[order-2] && keyArr[order-2] != Integer.MIN_VALUE) return order-1;
+            if(keyArr[i+1] == Integer.MIN_VALUE) return i+1;
+            if(key >= keyArr[i] && key < keyArr[i+1]) return i+1;
+        }
+        return 0;
+    }
 
 
-/* 
+
+
     public LinkedList<Long> rangeSearch(int low, int high){
         //PRE: low <= high 
-        /* 
+        LinkedList<Long> ret = new LinkedList<Long>();
+        return ret;
 
-        return a list of row addresses for all keys in the range low to high inclusive 
-        the implementation must use the fact that the leaves are linked 
-        return an empty list when no keys are in the range 
+//        return a list of row addresses for all keys in the range low to high inclusive 
+//        the implementation must use the fact that the leaves are linked 
+//        return an empty list when no keys are in the range 
         
     }
-*/
 
-    public void print() { 
-        //print the B+Tree to standard output 
-        //print one node per line 
-        //This method can be helpful for debugging 
-    }
-    
-    public void printRoot() throws IOException{
-        f.seek(this.root);
-        int content = f.readInt();
-        System.out.println("This is the content: "+content);
+
+    public void printNode(long address) throws IOException{
+        BTreeNode cur = new BTreeNode(address);
+        System.out.println("\n-------------------");
+        System.out.println("This is the content: "+cur.count);
+        System.out.println("This is the address: "+cur.address);
+        System.out.println("This is the isLeaf value: "+cur.isLeaf);
         System.out.print("These are the keys: ");
         for(int i = 0; i<4; i++){
-            System.out.print(f.readInt()+" ");
+            System.out.print(cur.keys[i]+" ");
         }
         System.out.println();
         System.out.print("These are the children: ");
         for(int i = 0; i<5; i++){
-            System.out.print(f.readLong()+" ");
+            System.out.print(cur.children[i]+" ");
         }
-        System.out.println();
+        System.out.println("\n-------------------");
+    }
+
+    public void printTree() throws IOException{
+        Queue<Long> queue = new ArrayDeque<Long>();
+        queue.add(root);
+        while(!queue.isEmpty()){
+            long cur = queue.poll();
+            BTreeNode now = new BTreeNode(cur);
+            for(int i = 0; i < now.children.length; i++){
+                if(now.children[i] == 0){}
+                else{queue.add(now.children[i]);}
+            }
+            printNode(cur);
+        }
 
     }
 
-    public void close() { 
+
+    public RandomAccessFile getFile(){
+        return f;
+    }
+
+    public void close() throws IOException { 
         //close the B+tree. The tree should not be accessed after close is called 
+        //writing out everything.
+        f.seek(0);
+        f.writeLong(root);
+        f.writeLong(free);
+        f.writeInt(blockSize);
+
     }
     
     public static void main(String[] args) throws IOException{
         BTree tree = new BTree("./BtreeFile", 60);
-        tree.insert(5, 500);
-        tree.insert(8, 550); //fix the issues with this
-        tree.insert(9, 200);
-        tree.insert(6, 5123);
-        tree.insert(7, 123);
-        tree.printRoot();
+        tree.insert(10, 500);
+        tree.insert(9, 550); //fix the issues with this
+        tree.insert(8, 200);
+        tree.insert(7, 5123);
+        tree.insert(6, 123);
+         
+        tree.insert(5, 2);
+//        tree.insert(4, 1);
+//        tree.insert(3, 5);
+        /*tree.insert(2, 17);
+        tree.insert(11, 18);
+        tree.insert(12, 19);
+        tree.insert(13, 21);
+        tree.insert(14, 25);
+        tree.insert(15, 26);
+        tree.insert(16, 27);
+        */
+        tree.printTree();
     }
 }
 
