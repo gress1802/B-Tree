@@ -161,7 +161,7 @@ public class BTree {
                 split = false; //setting split to false since we wont be splitting the node
                 int childIndex = compareForChildren(key, cur.keys); //this is the index of where the address will go
                 //shift over childrenarray
-                cur.children = shiftChildrenLeaves(childIndex, cur.children);
+                cur.children = shiftChildren(childIndex, cur.children);
                 cur.children[childIndex] = addr; //setting the address
                 cur.count = getCount(cur.keys, cur.isLeaf); //this is the negation of it because we are at a leaf
                 cur.writeNode(cur.address); //writing the node to the file where it relies
@@ -267,7 +267,7 @@ public class BTree {
         //creating the key arrays for the nodes
         left.keys = keysNotNullArray(key, left.keys); //this adds the key to the array;
 
-        int index = compareForChildrenLeaves(key, left.keys); //this is the index of where we will add to the children array
+        int index = compareForChildren(key, left.keys); //this is the index of where we will add to the children array
         left.children = shiftChildren(index,left.children); //shifting the children
         left.children[index] = address; //adding the new address
 
@@ -655,7 +655,7 @@ public class BTree {
         tree.insert(7, 5123);
         tree.insert(6, 123);
          
-        tree.insert(5, 2);
+//        tree.insert(5, 2);
 //        tree.insert(4, 1);
 //        tree.insert(3, 5);
         /*tree.insert(2, 17);
