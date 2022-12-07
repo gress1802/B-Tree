@@ -90,9 +90,9 @@ public class BTreeTest {
         
         System.out.println("Past inserts in test 3");
         
-        for (i = len-1; i > 4; i--) {
+        /*for (i = len-1; i > 4; i--) {
             t3.remove(nums[i]);
-        }
+        }*/
         System.out.println("Print after removes in test 3");
         t3.print();
 
@@ -117,8 +117,9 @@ public class BTreeTest {
             sFields[1] = Arrays.copyOf((new Integer(nums[i])).toString().toCharArray(), 15);
             sFields[2] = Arrays.copyOf((new Integer(nums[i])).toString().toCharArray(), 25);
 
-            t4.insert(nums[i], sFields);
+            t4.insert(nums[i], sFields); //14 nodes is the issue
         }
+        t4.printTree();
         
         System.out.println("Past inserts in test 4"+s);
         System.out.println("Search for all in test4"+s);
@@ -159,10 +160,10 @@ public class BTreeTest {
             t5.insert(nums[i], sFields);
         }
         
-        System.out.println("Past inserts in test 5"+s);
-        for (i = len-1; i > 12; i--) {
-            t5.remove(nums[i]);
-        }
+       // System.out.println("Past inserts in test 5"+s);
+        //for (i = len-1; i > 12; i--) {
+        //    t5.remove(nums[i]);
+        //}
         System.out.println("Print after removes in test 5"+s);
         t5.print();
 
@@ -173,7 +174,7 @@ public class BTreeTest {
         t5.print();
         t5.close();
     }
-    
+   
     public void test6(String s, int blockSize) throws IOException {
     //insert 2000 random numbers, remove them all, inserts them again in reverse order and remove all but 12 of them.
         System.out.println("Start test 6"+s);
@@ -195,9 +196,9 @@ public class BTreeTest {
             t6.insert(nums[i], sFields);
         }
         System.out.println("Test 6"+s+" after inserts");
-        for ( i = 0; i < 2000; i++) {
+        /*for ( i = 0; i < 2000; i++) {
             t6.remove(nums[i]);
-        }
+        }*/
         System.out.println("Test 6"+s+" after removes");
         for ( i = 1999; i >= 0; i--) {
             sFields[0] = Arrays.copyOf((new Integer(nums[i])).toString().toCharArray(), 15);
@@ -208,16 +209,16 @@ public class BTreeTest {
             t6.insert(nums[i], sFields);
         }
         System.out.println("Test 6"+s+" after second inserts");
-        for ( i = 1999; i > 11; i--) {
+      /*   for ( i = 1999; i > 11; i--) {
             t6.remove(nums[i]);
-        }
+        }*/
         System.out.println("Test 6"+s+" after second removes");
         t6.close();
         t6 = new DBTable("t6"+s);
         t6.print();
         t6.close();
 
-    }
+    } 
  
     public static void main(String args[]) throws IOException {
         BTreeTest test = new BTreeTest();
@@ -243,8 +244,8 @@ public class BTreeTest {
         test.test5("a", nums, 72);
         test.test5("b", nums, 132);
         
-        test.test6("a", 132);
-        test.test6("b", 144);
+        //test.test6("a", 132);
+        //test.test6("b", 144);
     }
 
 }

@@ -1,5 +1,6 @@
 import java.io.IOException;
 import java.io.RandomAccessFile;
+import java.util.Arrays;
 import java.util.LinkedList;
 
 public class DBTable { 
@@ -30,6 +31,10 @@ public class DBTable {
 
         //this is the constructor for a row given the address of where that row is stored in DBTable
         public Row(long address) throws IOException{
+            otherFields = new char[numOtherFields][];
+            for(int i = 0; i < otherFieldLengths.length; i++){
+                otherFields = new char[numOtherFields][otherFieldLengths[i]];
+            }
             rows.seek(address);//seeking the address
             this.keyField = rows.readInt(); //reading the keyField
             for(int i = 0; i<numOtherFields; i++){ //number of fields
@@ -81,7 +86,8 @@ public class DBTable {
         //Use this constructor to open an existing DBTable 
         this.rows = new RandomAccessFile(filename, "rw"); //creating the new RandomAccessFile
         rows.seek(0); //seeking 0 to start reading values to set to attributes
-        this.numOtherFields = rows.readInt(); //setting attribute 
+        this.numOtherFields = rows.readInt(); //setting attribute
+        otherFieldLengths = new int[numOtherFields]; 
         for(int i = 0; i<numOtherFields; i++){
             this.otherFieldLengths[i] = rows.readInt(); //setting the array of row lengths
         }
@@ -142,6 +148,7 @@ public class DBTable {
             String thisString = "";
             for(int x = 0; x<fields[i].length; x++){
                 thisString = thisString+fields[i][x];
+                if(fields[i][x] == '\0') break;
             }
             ret.add(thisString);
         }
@@ -171,6 +178,7 @@ public class DBTable {
                 String thisString = "";
                 for(int z = 0; z<fields[x].length; z++){
                     thisString = thisString+fields[x][z];
+                    if(fields[x][z] == '\0') break;
                 }
                 currentList.add(thisString);
             }
@@ -179,15 +187,39 @@ public class DBTable {
         return ret;
     } 
 
-    public void print() { 
+    public void print() throws IOException { 
         //Print the rows to standard output is ascending order (based on the keys) 
         //Include the key and other fields 
-        //print one row per line 
+        //print one row per line
+        LinkedList<Long> range = tree.rangeSearch(Integer.MIN_VALUE, Integer.MAX_VALUE);
+        for(int i = 0; i<range.size(); i++){ //go through each row
+            Row curRow = new Row(range.get(i));
+            System.out.print("Key: "+curRow.keyField+" ");
+            for(int x = 0; x<curRow.otherFields.length; x++){
+                System.out.print("Otherfield "+(x+1)+": ");
+                for(int z = 0; z<curRow.otherFields[x].length;z++){
+                    System.out.print(curRow.otherFields[x][z]);
+                    if(curRow.otherFields[x][z] == '\0') break;
+                }
+            }
+            System.out.println(); //newline
+        }
         
     } 
 
-    public void close() { 
-        //close the DBTable. The table should not be used after it is closed 
+    public void printTree() throws IOException{
+        tree.print();
+    }
+
+    public void close() throws IOException { 
+        //close the DBTable. The table should not be used after it is closed
+        rows.seek(0);
+        rows.writeInt(numOtherFields);
+        for(int i = 0; i<numOtherFields; i++){
+            rows.writeInt(otherFieldLengths[i]);
+        } 
+        rows.writeLong(free);
+        rows.close();
     } 
 
     public void printFirstRow() throws IOException{
@@ -197,16 +229,36 @@ public class DBTable {
     }
 
     public static void main(String[] args) throws IOException{
-        int[] fL = {2, 3};
-        DBTable table = new DBTable("dbtable",fL,60);
-        char[][] x = new char[4][4];
-        for(int i = 0; i<x.length;i++){
-            for(int y= 0; y<x[i].length; y++){
-                x[i][y] = 'a';
-            }
+        //this test creates an DBTable with a height 1 order 5 BTree
+        //and inserts, removes, print and reuses the tree
+        System.out.println("Start test 3");
+        int i;
+        int sFieldLens[] = {10, 15};
+        int nums[] = {9, 5, 1, 13, 17, 2, 6, 7, 8, 3, 4, 10, 18, 11, 12, 14, 19, 15, 16, 20};
+        int len = nums.length;
+        DBTable t3 = new DBTable("t3", sFieldLens, 60);
+        char sFields[][] = new char[2][];
+        for ( i = 0; i < len; i++) {
+            sFields[0] = Arrays.copyOf((new Integer(nums[i])).toString().toCharArray(), 10);
+            sFields[1] = Arrays.copyOf((new Integer(nums[i])).toString().toCharArray(), 15);
+
+            t3.insert(nums[i], sFields);
         }
-        table.insert(1, x);
-        table.printFirstRow();
+        
+        System.out.println("Past inserts in test 3");
+        
+        /*for (i = len-1; i > 4; i--) {
+            t3.remove(nums[i]);
+        }
+        System.out.println("Print after removes in test 3");
+        t3.print();*/
+
+        t3.close();
+        
+        t3 = new DBTable("t3");
+        System.out.println("Print after reuse in test 3");
+        t3.print();
+        t3.close();
     }
 }
 

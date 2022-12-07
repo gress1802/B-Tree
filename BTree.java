@@ -563,12 +563,6 @@ public class BTree {
         }//when we exit the while loop cur is a leaf that may contain what we are looking for
         //use searchFor function in dbtable to return true if it was found and false if it wasnt
         long dbTableAddress = cur.children[compareForChildren(k, cur.keys)]; //this is now the address of the row
-        for(int i = 0; i<cur.keys.length-1; i++){
-            if(cur.keys[i] == k){
-                //if it was found, then we return the address to the blo
-                return 0;
-            }
-        } 
         //otherwise it was not so return 0
         return dbTableAddress;
 
@@ -656,17 +650,22 @@ public class BTree {
         System.out.println("\n-------------------");
     }
 
-    public void printTree() throws IOException{
+    public void print() throws IOException{
+        System.out.println("-- Printing the Tree --");
         Queue<Long> queue = new ArrayDeque<Long>();
         queue.add(root);
         while(!queue.isEmpty()){
             long cur = queue.poll();
             BTreeNode now = new BTreeNode(cur);
-            for(int i = 0; i < now.children.length; i++){
-                if(now.children[i] == 0){}
-                else{queue.add(now.children[i]);}
+            if(now.isLeaf){}
+            else{
+                for(int i = 0; i < now.children.length; i++){
+                    if(now.children[i] == 0){}
+                    else{queue.add(now.children[i]);}
+                }
             }
             printNode(cur);
+            
         }
 
     }
@@ -683,6 +682,7 @@ public class BTree {
         f.writeLong(root);
         f.writeLong(free);
         f.writeInt(blockSize);
+        f.close();
 
     }
     
@@ -695,7 +695,7 @@ public class BTree {
         tree.insert(10, 123);
         tree.insert(17, 123);
          
-        tree.printTree();
+        tree.print();
     }
 }
 
