@@ -116,7 +116,7 @@ public class BTreeTest {
             sFields[0] = Arrays.copyOf((new Integer(nums[i])).toString().toCharArray(), 10);
             sFields[1] = Arrays.copyOf((new Integer(nums[i])).toString().toCharArray(), 15);
             sFields[2] = Arrays.copyOf((new Integer(nums[i])).toString().toCharArray(), 25);
-
+            System.out.println("Inserted "+nums[i]);
             t4.insert(nums[i], sFields); //14 nodes is the issue
         }
         t4.printTree();

@@ -280,8 +280,10 @@ public class BTree {
         BTreeNode right = new BTreeNode();
         //creating the key arrays for the nodes
         left.keys = keysNotNullArray(key, left.keys); //this adds the key to the array;
-        int index;
-        index = compareForChildrenLeaves(key, left.keys);
+        int index = 1;
+        if(leaf) index = compareForChildren(key, left.keys);
+        if(!leaf) index = compareForChildrenLeaves(key, left.keys);
+        //index = compareForChildrenLeaves(key, left.keys);
         left.children = shiftChildren(index,left.children); //shifting the children
         left.children[index] = address; //adding the new address
 
@@ -290,8 +292,13 @@ public class BTree {
         //the keys of both are split
 
         right.children = splitChildrenRight(left.children);
-        if(leaf) right.children[(int)Math.ceil((double)right.children.length/2)+1] = right.children[(int)Math.ceil((double)right.children.length/2)]; //this is if it is a leaf setting the pointer values to the next node to 0
-        if(leaf) right.children[(int)Math.ceil((double)right.children.length/2)] = 0; //this is if it is a leaf setting the pointer values to the next node to 0
+        if(order%2 == 0){
+            if(leaf) right.children[order-1] = right.children[(int)Math.ceil((double)right.children.length/2)-1]; //this is if it is a leaf setting the pointer values to the next node to 0
+            if(leaf) right.children[(int)Math.ceil((double)right.children.length/2)-1] = 0; //this is if it is a leaf setting the pointer values to the next node to 0
+        }else{
+            if(leaf) right.children[order-1] = right.children[(int)Math.ceil((double)right.children.length/2)]; //this is if it is a leaf setting the pointer values to the next node to 0
+            if(leaf) right.children[(int)Math.ceil((double)right.children.length/2)] = 0; //this is if it is a leaf setting the pointer values to the next node to 0
+        }
         left.children = splitChildrenLeft(left.children);
         //the children of both are split
 
@@ -348,7 +355,7 @@ public class BTree {
      */
     public long[] splitChildrenLeft(long[] arr){
         long[] ret = new long[order+1];
-        for(int i = 0; i< Math.floor((double)order/2); i++){
+        for(int i = 0; i< Math.ceil((double)order/2)+1; i++){ //changed to ceil
             ret[i] = arr[i];
         }
         return ret;
@@ -361,7 +368,7 @@ public class BTree {
     public long[] splitChildrenRight(long[] arr){
         long[] ret = new long[order+1];
         int x = 0; //counter
-        for(double i = Math.floor((double)order/2); i<ret.length; i++){
+        for(double i = Math.ceil((double)order/2); i<ret.length; i++){
             ret[x] = arr[(int)i];
             x++;
         }
@@ -585,7 +592,7 @@ public class BTree {
      */
     public int compareForChildrenLeaves(int key, int[] keyArr){
         if(key < keyArr[0]) return 0;
-        if(key >= keyArr[order-1] && keyArr[order-1] != Integer.MIN_VALUE) return order-1;
+        if(key >= keyArr[order-1] && keyArr[order-1] != Integer.MIN_VALUE) return order;
         for(int i = 0; i<keyArr.length; i++){
             if(key >= keyArr[order-2] && keyArr[order-2] != Integer.MIN_VALUE) return order-1;
             if(keyArr[i+1] == Integer.MIN_VALUE) return i+1;
@@ -687,13 +694,37 @@ public class BTree {
     }
     
     public static void main(String[] args) throws IOException{
-        BTree tree = new BTree("./BtreeFile", 72);
-        tree.insert(12, 500);
-        tree.insert(16, 550); //fix the issues with this
-        tree.insert(13, 200);
-        tree.insert(15, 5123);
-        tree.insert(10, 123);
-        tree.insert(17, 123);
+        BTree tree = new BTree("./BtreeFile", 132);
+        tree.insert(0, 12);
+        tree.insert(25, 13);
+        tree.insert(1, 14);
+        tree.insert(26, 15);
+        tree.insert(2, 16);
+        tree.insert(27, 17);
+        tree.insert(3, 18);
+        tree.insert(28, 19);
+        tree.insert(4, 20);
+        tree.insert(29, 21);
+        tree.insert(5, 22);
+        tree.insert(30, 23);
+        tree.insert(6, 24);
+        tree.insert(31, 25);
+        tree.insert(7, 26);
+        tree.insert(32, 27);
+        tree.insert(8, 28);
+        tree.insert(33, 29);
+        tree.insert(9, 30);
+        tree.insert(10, 31);
+        tree.insert(35, 31);
+        tree.insert(11, 31);
+        tree.insert(36, 31);
+        tree.insert(12, 31);
+        //tree.insert(37, 31);
+            
+            
+            
+            
+            
          
         tree.print();
     }
