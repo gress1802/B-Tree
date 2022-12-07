@@ -4,6 +4,7 @@ import java.io.RandomAccessFile;
 import java.util.ArrayDeque;
 import java.util.LinkedList;
 import java.util.Queue;
+import java.util.Scanner;
 import java.util.Stack;
 
 public class BTree { 
@@ -123,8 +124,7 @@ public class BTree {
         return true if the key is added 
         return false if the key is a duplicate 
         */
-        //first check if the key is already in the tree
-        if(this.root != -1 && isInTree(key)) return false;
+        //if(this.root != -1 && isInTree(key)) return false;
         boolean split = true;
         int[] keysVar = new int[order];
         if(this.root == -1 ){//the tree is empty
@@ -235,18 +235,21 @@ public class BTree {
                 }
             }
         }
+
         return true;
     }
-
     public boolean isInTree(int k) throws IOException{
         //start with search path
         BTreeNode cur = new BTreeNode(root);
         while(!cur.isLeaf){
             int index = compareForChildrenLeaves(k, cur.keys);
+            index = compareForChildrenLeaves(k, cur.keys);
             cur = new BTreeNode(cur.children[index]);
         }//now at the row were it would be contained
         for(int i = 0; i<cur.keys.length; i++){
-            if(cur.keys[i] == k)return true;
+            if(cur.keys[i] == k){
+                return true;
+            }
         }
         return false;
     }
@@ -290,8 +293,11 @@ public class BTree {
         right.keys = splitKeysRight(left.keys); //splitting the keys now
         left.keys = splitKeysLeft(left.keys);
         //the keys of both are split
-
-        right.children = splitChildrenRight(left.children);
+        if(leaf){
+            right.children = splitChildrenRight(left.children);
+        }else{
+            right.children = splitChildrenRightLeaves(left.children);
+        }
         if(order%2 == 0){
             if(leaf) right.children[order-1] = right.children[(int)Math.ceil((double)right.children.length/2)-1]; //this is if it is a leaf setting the pointer values to the next node to 0
             if(leaf) right.children[(int)Math.ceil((double)right.children.length/2)-1] = 0; //this is if it is a leaf setting the pointer values to the next node to 0
@@ -299,7 +305,12 @@ public class BTree {
             if(leaf) right.children[order-1] = right.children[(int)Math.ceil((double)right.children.length/2)]; //this is if it is a leaf setting the pointer values to the next node to 0
             if(leaf) right.children[(int)Math.ceil((double)right.children.length/2)] = 0; //this is if it is a leaf setting the pointer values to the next node to 0
         }
-        left.children = splitChildrenLeft(left.children);
+        if(leaf){
+            left.children = splitChildrenLeft(left.children);
+        }else{
+            left.children = splitChildrenLeftLeaves(left.children);
+        }
+
         //the children of both are split
 
         //Now updating the nodes counts (Negative because they are both leaves)
@@ -355,7 +366,21 @@ public class BTree {
      */
     public long[] splitChildrenLeft(long[] arr){
         long[] ret = new long[order+1];
-        for(int i = 0; i< Math.ceil((double)order/2)+1; i++){ //changed to ceil
+        if((order%2==0)){
+            for(int i = 0; i< Math.ceil((double)order/2)+1; i++){ //changed to ceil
+                ret[i] = arr[i];
+            }
+        }else{ //special case
+            for(int i = 0; i< Math.ceil((double)order/2); i++){ //changed to ceil
+                ret[i] = arr[i];
+            }
+        }
+        return ret;
+    }
+
+    public long[] splitChildrenLeftLeaves(long[] arr){
+        long[] ret = new long[order+1];
+        for(int i = 0; i< Math.ceil((double)order/2)+1; i++){ //changed from -1
             ret[i] = arr[i];
         }
         return ret;
@@ -366,6 +391,23 @@ public class BTree {
      * parameter address is the new address associated with the new key
      */
     public long[] splitChildrenRight(long[] arr){
+        long[] ret = new long[order+1];
+        int x = 0; //counter
+        if(order%2==0){
+            for(double i = Math.ceil((double)order/2); i<ret.length; i++){
+                ret[x] = arr[(int)i];
+                x++;
+            }
+        }else{//special case
+            for(double i = Math.ceil((double)order/2-1); i<ret.length; i++){
+                ret[x] = arr[(int)i];
+                x++;
+            }
+        }
+        return ret;
+    }
+
+    public long[] splitChildrenRightLeaves(long[] arr){
         long[] ret = new long[order+1];
         int x = 0; //counter
         for(double i = Math.ceil((double)order/2); i<ret.length; i++){
@@ -458,6 +500,7 @@ public class BTree {
         ret.push(cur); //pushing cur to the stack as it is the first node in the search path
         while(!cur.isLeaf){
             int index = compareForChildrenLeaves(k, cur.keys);
+            if(cur.children[index] == 0) index--;
             cur = new BTreeNode(cur.children[index]);
             ret.push(cur); //pushing the next node in the search path onto the stack
         }
@@ -695,38 +738,28 @@ public class BTree {
     
     public static void main(String[] args) throws IOException{
         BTree tree = new BTree("./BtreeFile", 132);
-        tree.insert(0, 12);
-        tree.insert(25, 13);
-        tree.insert(1, 14);
-        tree.insert(26, 15);
-        tree.insert(2, 16);
-        tree.insert(27, 17);
-        tree.insert(3, 18);
-        tree.insert(28, 19);
-        tree.insert(4, 20);
-        tree.insert(29, 21);
-        tree.insert(5, 22);
-        tree.insert(30, 23);
-        tree.insert(6, 24);
-        tree.insert(31, 25);
-        tree.insert(7, 26);
-        tree.insert(32, 27);
-        tree.insert(8, 28);
-        tree.insert(33, 29);
-        tree.insert(9, 30);
-        tree.insert(10, 31);
-        tree.insert(35, 31);
-        tree.insert(11, 31);
-        tree.insert(36, 31);
-        tree.insert(12, 31);
-        //tree.insert(37, 31);
-            
+        int sFieldLens[] = {10, 15, 25};
+           
+        Scanner scan = new Scanner(System.in);
+        System.out.print("Enter the maximum number of keys to use for tests 4 and 5: ");
+        int max = scan.nextInt();
+        int nums[] = new int[max];
+        int nums1[] = new int[max];
+        int i, j;
+        for (j = 0; j < max; j++) nums1[j] = j;
+        for (j = 0; j < max/2; j++) {
+            nums[2*j] = nums1[j];
+            nums[2*j+1] = nums1[j + max/2];
+        }
+
+        for(int x = 0; x<nums.length; x++){
+            tree.insert(nums[x], 12);
+        }
             
             
             
             
          
-        tree.print();
     }
 }
 
