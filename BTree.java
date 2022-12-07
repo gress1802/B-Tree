@@ -123,9 +123,10 @@ public class BTree {
         return true if the key is added 
         return false if the key is a duplicate 
         */
+        //first check if the key is already in the tree
+        if(this.root != -1 && isInTree(key)) return false;
         boolean split = true;
         int[] keysVar = new int[order];
-
         if(this.root == -1 ){//the tree is empty
             int[] keys = new int[order];
             for(int i = 0; i<keys.length; i++){ //the padding for the arrays is integer.minvalue
@@ -166,7 +167,7 @@ public class BTree {
                 cur.count = getCount(cur.keys, cur.isLeaf); //this is the negation of it because we are at a leaf
                 cur.writeNode(cur.address); //writing the node to the file where it relies
             }else{//else the node is full 
-                BTreeNode newNode = split(cur, key, addr); //this method will return the right values node (newNode) and modify cur to be the left(node)
+                BTreeNode newNode = split(cur, key, addr, true); //this method will return the right values node (newNode) and modify cur to be the left(node)
                 //newNode is now the right values node while cur is the left values node
                 cur.children[order-1] = f.length(); //change this when implementing freelist
                 int val = newNode.keys[0];//this is the smallest value
@@ -197,7 +198,7 @@ public class BTree {
                         split = false;
                     }else{ //there is not room in node for a new value 
                         newNode = new BTreeNode();
-                        newNode = split(node, val, loc); //we are splitting the root. the right values node is newNode and node is now the left values node
+                        newNode = split(node, val, loc, false); //we are splitting the root. the right values node is newNode and node is now the left values node
                         val = newNode.keys[0];
                         node.writeNode(node.address);
                         //now writing newNode to the file
@@ -237,6 +238,19 @@ public class BTree {
         return true;
     }
 
+    public boolean isInTree(int k) throws IOException{
+        //start with search path
+        BTreeNode cur = new BTreeNode(root);
+        while(!cur.isLeaf){
+            int index = compareForChildrenLeaves(k, cur.keys);
+            cur = new BTreeNode(cur.children[index]);
+        }//now at the row were it would be contained
+        for(int i = 0; i<cur.keys.length; i++){
+            if(cur.keys[i] == k)return true;
+        }
+        return false;
+    }
+
     /*
      * This is a method that updates a BTreeNode by adding the parameter key, adding
      * the parameter address, and updating the count of the BTreeNode
@@ -266,8 +280,8 @@ public class BTree {
         BTreeNode right = new BTreeNode();
         //creating the key arrays for the nodes
         left.keys = keysNotNullArray(key, left.keys); //this adds the key to the array;
-
-        int index = compareForChildren(key, left.keys); //this is the index of where we will add to the children array
+        int index;
+        index = compareForChildrenLeaves(key, left.keys);
         left.children = shiftChildren(index,left.children); //shifting the children
         left.children[index] = address; //adding the new address
 
@@ -276,12 +290,14 @@ public class BTree {
         //the keys of both are split
 
         right.children = splitChildrenRight(left.children);
+        if(leaf) right.children[(int)Math.ceil((double)right.children.length/2)+1] = right.children[(int)Math.ceil((double)right.children.length/2)]; //this is if it is a leaf setting the pointer values to the next node to 0
+        if(leaf) right.children[(int)Math.ceil((double)right.children.length/2)] = 0; //this is if it is a leaf setting the pointer values to the next node to 0
         left.children = splitChildrenLeft(left.children);
         //the children of both are split
 
         //Now updating the nodes counts (Negative because they are both leaves)
-        right.count = -(int)Math.ceil((double)order/2);
-        left.count = -(int)Math.floor((double)order/2);
+        right.count = getCount(right.keys, leaf);
+        left.count = getCount(left.keys, leaf);
         
 
         return right;
@@ -575,7 +591,7 @@ public class BTree {
      */
     public int compareForChildrenLeaves(int key, int[] keyArr){
         if(key < keyArr[0]) return 0;
-        if(key >= keyArr[order-1] && keyArr[order-1] != Integer.MIN_VALUE) return order;
+        if(key >= keyArr[order-1] && keyArr[order-1] != Integer.MIN_VALUE) return order-1;
         for(int i = 0; i<keyArr.length; i++){
             if(key >= keyArr[order-2] && keyArr[order-2] != Integer.MIN_VALUE) return order-1;
             if(keyArr[i+1] == Integer.MIN_VALUE) return i+1;
@@ -587,15 +603,38 @@ public class BTree {
 
 
 
-    public LinkedList<Long> rangeSearch(int low, int high){
+    public LinkedList<Long> rangeSearch(int low, int high) throws IOException{
         //PRE: low <= high 
         LinkedList<Long> ret = new LinkedList<Long>();
-        return ret;
+        
+        Stack<BTreeNode> stack = searchWithStack(root, low);
+        BTreeNode lowLeaf = stack.pop(); //this is the low leaf
+        int curKey = 0;
+        int i = 0;
+
+        while(curKey < high){ //search until the highest value is found
+            curKey = lowLeaf.keys[i];
+            if(curKey >= low && curKey <= high && curKey != Integer.MIN_VALUE) ret.add(lowLeaf.children[i]);
+            //otherwise leave the leaf node and go to the next one
+            if(i == order-2){
+                if(lowLeaf.children[i+1] == 0) break; //this is the case where we cant have a bigger value
+                lowLeaf = new BTreeNode(lowLeaf.children[i+1]);
+                i = 0;
+                continue;
+            }
+            i++;
+        }
+            
+
+
+
+       
+
 
 //        return a list of row addresses for all keys in the range low to high inclusive 
 //        the implementation must use the fact that the leaves are linked 
 //        return an empty list when no keys are in the range 
-        
+        return ret; 
     }
 
 
@@ -606,12 +645,12 @@ public class BTree {
         System.out.println("This is the address: "+cur.address);
         System.out.println("This is the isLeaf value: "+cur.isLeaf);
         System.out.print("These are the keys: ");
-        for(int i = 0; i<4; i++){
+        for(int i = 0; i<order-1; i++){
             System.out.print(cur.keys[i]+" ");
         }
         System.out.println();
         System.out.print("These are the children: ");
-        for(int i = 0; i<5; i++){
+        for(int i = 0; i<order; i++){
             System.out.print(cur.children[i]+" ");
         }
         System.out.println("\n-------------------");
@@ -648,23 +687,14 @@ public class BTree {
     }
     
     public static void main(String[] args) throws IOException{
-        BTree tree = new BTree("./BtreeFile", 60);
-        tree.insert(10, 500);
-        tree.insert(9, 550); //fix the issues with this
-        tree.insert(8, 200);
-        tree.insert(7, 5123);
-        tree.insert(6, 123);
+        BTree tree = new BTree("./BtreeFile", 72);
+        tree.insert(12, 500);
+        tree.insert(16, 550); //fix the issues with this
+        tree.insert(13, 200);
+        tree.insert(15, 5123);
+        tree.insert(10, 123);
+        tree.insert(17, 123);
          
-        tree.insert(5, 2);
-        tree.insert(4, 1);
-        tree.insert(3, 5);
-        //tree.insert(2, 17);
-        //tree.insert(11, 18);
-        //tree.insert(12, 19);
-        //tree.insert(13, 21);
-        //tree.insert(14, 25);
-        //tree.insert(15, 26);
-        //tree.insert(16, 27);
         tree.printTree();
     }
 }

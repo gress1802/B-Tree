@@ -1,11 +1,13 @@
 import java.io.IOException;
 import java.io.RandomAccessFile;
+import java.util.LinkedList;
 
 public class DBTable { 
     private RandomAccessFile rows; //the file that stores the rows in the table 
     private long free; //head of the free list space for rows 
     private int numOtherFields; 
     private int otherFieldLengths[];
+    private BTree tree;
     //add other instance variables as needed
     private class Row { 
         private int keyField; 
@@ -61,7 +63,9 @@ public class DBTable {
         If a file with name filename exists, the file should be deleted before the 
         new file is created. 
         */
+        tree = new BTree(filename+"BTREE", bsize);
         this.rows = new RandomAccessFile(filename, "rw"); //creating the new randomaccessfile
+        rows.setLength(0); //reseting file
         this.numOtherFields = fL.length;
         this.otherFieldLengths = fL;
         rows.seek(0); //seeking the 0 position to start writing the attributes
@@ -73,6 +77,7 @@ public class DBTable {
     }
 
     public DBTable(String filename) throws IOException{ 
+        tree = new BTree(filename+"BTREE"); //initializing the new BTree
         //Use this constructor to open an existing DBTable 
         this.rows = new RandomAccessFile(filename, "rw"); //creating the new RandomAccessFile
         rows.seek(0); //seeking 0 to start reading values to set to attributes
@@ -93,7 +98,7 @@ public class DBTable {
         return cur.keyField == k ? true : false;
     } 
 
-    public boolean insert(int key, char fields[][]) { 
+    public boolean insert(int key, char fields[][]) throws IOException { 
     //PRE: the length of each row is fields matches the expected length 
     /* 
     If a row with the key is not in the table, the row is added and the method 
@@ -101,9 +106,15 @@ public class DBTable {
     The method must use the B+tree to determine if a row with the key exists. 
     If the row is added the key is also added into the B+tree. 
     */ 
+        long address = rows.length();
+        if(!tree.insert(key, address)) return false;// if the insertion was unsuccessful return false
+        //else we inserted the key into the BTree
+        Row newRow = new Row(key, fields); //create the new row
+        newRow.writeRow(address); //write the new row
+        return true;
     } 
 
-    public boolean remove(int key) { 
+//    public boolean remove(int key) { 
         /* 
         If a row with the key is in the table it is removed and true is returned 
         otherwise false is returned. 
@@ -111,9 +122,9 @@ public class DBTable {
         
         If the row is deleted the key must be deleted from the B+Tree 
         */ 
-    }
+//    }
 
-    public LinkedList<String> search(int key) { 
+    public LinkedList<String> search(int key) throws IOException { 
         /* 
         If a row with the key is found in the table return a list of the other fields in 
         the row. 
@@ -121,9 +132,23 @@ public class DBTable {
         If a row with the key is not found return an empty list 
         The method must use the equality search in B+Tree 
         */
+        long rowAddress = tree.search(key);
+        LinkedList<String> ret = new LinkedList<String>();
+        if(rowAddress == 0) return ret;
+        Row currentRow = new Row(rowAddress);
+        ret.add(Integer.toString(currentRow.keyField));
+        char[][] fields = currentRow.otherFields;
+        for(int i = 0; i<fields.length; i++){
+            String thisString = "";
+            for(int x = 0; x<fields[i].length; x++){
+                thisString = thisString+fields[i][x];
+            }
+            ret.add(thisString);
+        }
+        return ret;
     }
 
-    public LinkedList<LinkedList<String>> rangeSearch(int low, int high) { 
+    public LinkedList<LinkedList<String>> rangeSearch(int low, int high) throws IOException { 
         //PRE: low <= high 
         /* 
         For each row with a key that is in the range low to high inclusive a list 
@@ -132,17 +157,57 @@ public class DBTable {
         If there are no rows with a key in the range return an empty list 
         The method must use the range search in B+Tree 
         */ 
+        LinkedList<Long> list = tree.rangeSearch(low, high);
+        LinkedList<LinkedList<String>> ret = new LinkedList<LinkedList<String>>();
+        for(int i = 0; i<list.size(); i++){
+            LinkedList<String> currentList = new LinkedList<String>();
+            long address = list.get(i); //getting the otherfields 
+            Row cur = new Row(address);
+            currentList.add(Integer.toString(cur.keyField));
+            char[][] fields = cur.otherFields;
+
+            //parsing the otherfields to strings
+            for(int x = 0; x<fields.length; x++){
+                String thisString = "";
+                for(int z = 0; z<fields[x].length; z++){
+                    thisString = thisString+fields[x][z];
+                }
+                currentList.add(thisString);
+            }
+            ret.add(currentList);
+        }
+        return ret;
     } 
 
     public void print() { 
         //Print the rows to standard output is ascending order (based on the keys) 
         //Include the key and other fields 
         //print one row per line 
+        
     } 
 
     public void close() { 
         //close the DBTable. The table should not be used after it is closed 
     } 
+
+    public void printFirstRow() throws IOException{
+        rows.seek(20);
+        System.out.println(rows.readInt());
+        System.out.println(rows.readChar());
+    }
+
+    public static void main(String[] args) throws IOException{
+        int[] fL = {2, 3};
+        DBTable table = new DBTable("dbtable",fL,60);
+        char[][] x = new char[4][4];
+        for(int i = 0; i<x.length;i++){
+            for(int y= 0; y<x[i].length; y++){
+                x[i][y] = 'a';
+            }
+        }
+        table.insert(1, x);
+        table.printFirstRow();
+    }
 }
 
        
