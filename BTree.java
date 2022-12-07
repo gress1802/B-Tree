@@ -161,7 +161,7 @@ public class BTree {
                 split = false; //setting split to false since we wont be splitting the node
                 int childIndex = compareForChildren(key, cur.keys); //this is the index of where the address will go
                 //shift over childrenarray
-                cur.children = shiftChildren(childIndex, cur.children);
+                cur.children = shiftChildrenLeaves(childIndex, cur.children);
                 cur.children[childIndex] = addr; //setting the address
                 cur.count = getCount(cur.keys, cur.isLeaf); //this is the negation of it because we are at a leaf
                 cur.writeNode(cur.address); //writing the node to the file where it relies
@@ -262,7 +262,7 @@ public class BTree {
      * This method returns a BTreeNode. It returns the right values node and modifies the parameter node to be the left
      * it also takes the key as a parameter along with the long address to be added to children 
      */
-    public BTreeNode split(BTreeNode left, int key, long address){
+    public BTreeNode split(BTreeNode left, int key, long address, boolean leaf){
         BTreeNode right = new BTreeNode();
         //creating the key arrays for the nodes
         left.keys = keysNotNullArray(key, left.keys); //this adds the key to the array;
@@ -655,17 +655,16 @@ public class BTree {
         tree.insert(7, 5123);
         tree.insert(6, 123);
          
-//        tree.insert(5, 2);
-//        tree.insert(4, 1);
-//        tree.insert(3, 5);
-        /*tree.insert(2, 17);
-        tree.insert(11, 18);
-        tree.insert(12, 19);
-        tree.insert(13, 21);
-        tree.insert(14, 25);
-        tree.insert(15, 26);
-        tree.insert(16, 27);
-        */
+        tree.insert(5, 2);
+        tree.insert(4, 1);
+        tree.insert(3, 5);
+        //tree.insert(2, 17);
+        //tree.insert(11, 18);
+        //tree.insert(12, 19);
+        //tree.insert(13, 21);
+        //tree.insert(14, 25);
+        //tree.insert(15, 26);
+        //tree.insert(16, 27);
         tree.printTree();
     }
 }
