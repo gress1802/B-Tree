@@ -39,7 +39,11 @@ public class DBTable {
             this.keyField = rows.readInt(); //reading the keyField
             for(int i = 0; i<numOtherFields; i++){ //number of fields
                 for(int x = 0; x<otherFieldLengths[i]; x++){ //the length of each field
-                    otherFields[i][x] = rows.readChar(); //assigning the otherFields attribute
+                    char y = rows.readChar();
+                    if(y=='\0'){
+                    }else{
+                        otherFields[i][x] = y; //assigning the otherFields attribute
+                    }
                 }
             }
         }

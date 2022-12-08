@@ -608,10 +608,12 @@ public class BTree {
         */ 
         BTreeNode cur = new BTreeNode(this.root); //this is the root node
         while(!cur.isLeaf){
-            int numChild = compareForChildren(k, cur.keys); //this will return us the index we need to access the child we are looking for
+            int numChild = compareForChildrenLeaves(k, cur.keys); //this will return us the index we need to access the child we are looking for
             cur = new BTreeNode(cur.children[numChild]);
         }//when we exit the while loop cur is a leaf that may contain what we are looking for
         //use searchFor function in dbtable to return true if it was found and false if it wasnt
+        long x = compareForChildren(k, cur.keys);
+        if(x==Integer.MIN_VALUE) return 0;
         long dbTableAddress = cur.children[compareForChildren(k, cur.keys)]; //this is now the address of the row
         //otherwise it was not so return 0
         return dbTableAddress;
@@ -627,7 +629,7 @@ public class BTree {
         for(int i = 0; i<keyArr.length; i++){
             if(keyArr[i] == key) return i;
         }
-        return 0;
+        return Integer.MIN_VALUE; // the key was not found
     }
 
     /*

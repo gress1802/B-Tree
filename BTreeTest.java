@@ -223,7 +223,7 @@ public class BTreeTest {
         BTreeTest test = new BTreeTest();
         test.test1();
         test.test2();
-        test.test3();
+        //test.test3();
         
         Scanner scan = new Scanner(System.in);
         System.out.print("Enter the maximum number of keys to use for tests 4 and 5: ");
@@ -240,11 +240,11 @@ public class BTreeTest {
 
         test.test4("a", nums, 72, max);
         test.test4("b", nums, 132, max);
-        test.test5("a", nums, 72);
-        test.test5("b", nums, 132);
+        //test.test5("a", nums, 72);
+        //test.test5("b", nums, 132);
         
-        test.test6("a", 132);
-        test.test6("b", 144);
+        //test.test6("a", 132);
+        //test.test6("b", 144);
     }
 
 }
